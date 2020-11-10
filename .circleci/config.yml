@@ -234,93 +234,93 @@ workflows:
           filters:
             tags: &filters-release-tags
               only: /^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?/
-      - spotless:
-          filters:
-            tags:
-              <<: *filters-release-tags
-      - referenceTests:
-          requires:
-            - assemble
-            - spotless
-          filters:
-            tags:
-              <<: *filters-release-tags
-      - unitTests:
-          requires:
-            - assemble
-            - spotless
-          filters:
-            tags:
-              <<: *filters-release-tags
-      - integrationTests:
-          requires:
-            - assemble
-            - spotless
-          filters:
-            tags:
-              <<: *filters-release-tags
-      - acceptanceTests:
-          requires:
-            - assemble
-            - spotless
-          filters:
-            tags:
-              <<: *filters-release-tags
-      - docker:
-          requires:
-            - assemble
-            - spotless
-          filters:
-            tags:
-              <<: *filters-release-tags
-      - extractAPISpec:
-          requires:
-            - assemble
-          filters:
-            tags:
-              <<: *filters-release-tags
-      - publish:
-          filters:
-            branches:
-              only:
-                - master
-                - /^release-.*/
-            tags:
-              <<: *filters-release-tags
-          requires:
-            - unitTests
-            - integrationTests
-            - acceptanceTests
-            - referenceTests
-            - docker
-            - extractAPISpec
-      - publishDocker:
-          filters:
-            branches:
-              only:
-                - master
-                - /^release-.*/
-            tags:
-              <<: *filters-release-tags
-          requires:
-            - unitTests
-            - integrationTests
-            - acceptanceTests
-            - referenceTests
-            - docker
-            - extractAPISpec
-      - publishAPIDoc:
-          filters:
-            branches:
-              only:
-                - master
-                - /^release-.*/
-            tags: # stable doc is published only on tags to prevent confusion on the doc site.
-              <<: *filters-release-tags
-          requires:
-            - unitTests
-            - integrationTests
-            - acceptanceTests
-            - referenceTests
-            - docker
-            - extractAPISpec
+#      - spotless:
+#          filters:
+#            tags:
+#              <<: *filters-release-tags
+#      - referenceTests:
+#          requires:
+#            - assemble
+#            - spotless
+#          filters:
+#            tags:
+#              <<: *filters-release-tags
+#      - unitTests:
+#          requires:
+#            - assemble
+#            - spotless
+#          filters:
+#            tags:
+#              <<: *filters-release-tags
+#      - integrationTests:
+#          requires:
+#            - assemble
+#            - spotless
+#          filters:
+#            tags:
+#              <<: *filters-release-tags
+#      - acceptanceTests:
+#          requires:
+#            - assemble
+#            - spotless
+#          filters:
+#            tags:
+#              <<: *filters-release-tags
+#      - docker:
+#          requires:
+#            - assemble
+#            - spotless
+#          filters:
+#            tags:
+#              <<: *filters-release-tags
+#      - extractAPISpec:
+#          requires:
+#            - assemble
+#          filters:
+#            tags:
+#              <<: *filters-release-tags
+#      - publish:
+#          filters:
+#            branches:
+#              only:
+#                - master
+#                - /^release-.*/
+#            tags:
+#              <<: *filters-release-tags
+#          requires:
+#            - unitTests
+#            - integrationTests
+#            - acceptanceTests
+#            - referenceTests
+#            - docker
+#            - extractAPISpec
+#      - publishDocker:
+#          filters:
+#            branches:
+#              only:
+#                - master
+#                - /^release-.*/
+#            tags:
+#              <<: *filters-release-tags
+#          requires:
+#            - unitTests
+#            - integrationTests
+#            - acceptanceTests
+#            - referenceTests
+#            - docker
+#            - extractAPISpec
+#      - publishAPIDoc:
+#          filters:
+#            branches:
+#              only:
+#                - master
+#                - /^release-.*/
+#            tags: # stable doc is published only on tags to prevent confusion on the doc site.
+#              <<: *filters-release-tags
+#          requires:
+#            - unitTests
+#            - integrationTests
+#            - acceptanceTests
+#            - referenceTests
+#            - docker
+#            - extractAPISpec
