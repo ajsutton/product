@@ -1,0 +1,304 @@
+version: 2.1
+
+commands:
+  prepare:
+    description: "Prepare"
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore cached gradle dependencies
+          keys:
+            - deps-{{ checksum "build.gradle" }}-{{ .Branch }}-{{ .Revision }}
+            - deps-{{ checksum "build.gradle" }}
+            - deps-
+  capture_test_results:
+    description: "Capture test results"
+    steps:
+      - run:
+          name: "Gather test results"
+          when: "always"
+          command: |
+            FILES=`find . -name test-results`
+            for FILE in $FILES
+            do
+              MODULE=`echo "$FILE" | sed -e 's@./\(.*\)/build/test-results@\1@'`
+              TARGET="build/test-results/$MODULE"
+              mkdir -p "$TARGET"
+              cp -rf ${FILE}/*/* "$TARGET"
+            done
+      - store_test_results:
+          path: build/test-results
+
+  capture_test_artifacts:
+    description: "Capture test artifacts"
+    steps:
+      - run:
+          name: "Gather test artifacts"
+          when: "always"
+          command: |
+            FILES=`find . -name test-artifacts`
+            for FILE in $FILES
+            do
+              MODULE=`echo "$FILE" | sed -e 's@./\(.*\)/build/test-artifacts@\1@'`
+              TARGET="build/test-artifacts/$MODULE"
+              mkdir -p "$TARGET"
+              cp -rf ${FILE}/*/* "$TARGET"
+            done
+      - store_artifacts:
+          path: build/test-artifacts
+
+jobs:
+  assemble:
+    steps:
+      - prepare
+      - run:
+          name: Assemble
+          command: |
+            ./gradlew --no-daemon --parallel assemble
+      - save_cache:
+          name: Caching gradle dependencies
+          key: deps-{{ checksum "build.gradle" }}-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .gradle
+            - ~/.gradle
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - ./
+      - store_artifacts:
+          name: Distribution artifacts
+          path:  build/distributions
+          destination: distributions
+          when: always
+
+  spotless:
+    steps:
+      - prepare
+      - run:
+          name: Spotless
+          command: |
+            ./gradlew --no-daemon --parallel spotlessCheck
+
+  unitTests:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: UnitTests
+          no_output_timeout: 20m
+          command: |
+            ./gradlew --no-daemon --parallel test
+      - capture_test_results
+
+  integrationTests:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: IntegrationTests
+          no_output_timeout: 20m
+          command: |
+            ./gradlew --no-daemon --parallel integrationTest
+      - capture_test_results
+
+  acceptanceTests:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: AcceptanceTests
+          command: |
+            ./gradlew --no-daemon --parallel acceptanceTest
+      - capture_test_results
+      - capture_test_artifacts
+
+  referenceTests:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - restore_cache:
+          name: Restore cached reference test downloads
+          keys:
+            - reftests-{{ checksum "build.gradle" }}
+      - run:
+          name: ReferenceTests
+          command: |
+            ./gradlew --no-daemon --parallel referenceTest
+      - save_cache:
+          name: Caching reference tests
+          key: reftests-{{ checksum "build.gradle" }}
+          paths:
+            - eth-reference-tests/src/referenceTest/resources/eth2.0-spec-tests/
+      - capture_test_results
+
+  compatibilityTests:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: CompatibilityTests
+          no_output_timeout: 20m
+          command: |
+            ./gradlew --no-daemon --parallel compatibilityTest
+      - capture_test_results
+
+  docker:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Docker
+          command: |
+            ./gradlew --no-daemon --parallel distDocker
+
+  publish:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Publish
+          # binTray plugin doesn't publish pom artifacts if configure-on-demand is used
+          command: |
+            ./gradlew --no-daemon --parallel -no-configure-on-demand bintrayUpload
+
+  publishDocker:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Publish Docker
+          command: |
+            ./gradlew --no-daemon --parallel "-Pbranch=${CIRCLE_BRANCH}" dockerUpload
+
+  extractAPISpec:
+    steps:
+      - prepare
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Build runnable Teku binaries
+          command: |
+            ./gradlew --no-daemon --parallel
+
+  publishAPIDoc:
+    steps:
+      # This job requires that we checkout current branch first to have all the repos.
+      # it will not be used directly as we have the saved workspace
+      # but will enable to checkout gh-pages branch.
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: checkout gh pages branch and copy files from workspace
+          command: |
+            ./gradlew publishAPIDoc
+
+workflows:
+  circleci:
+    jobs:
+      - assemble:
+          context:
+            - dockerhub-quorumengineering-ro
+          filters:
+            tags: &filters-release-tags
+              only: /^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?/
+      - spotless:
+          filters:
+            tags:
+              <<: *filters-release-tags
+      - referenceTests:
+          requires:
+            - assemble
+            - spotless
+          filters:
+            tags:
+              <<: *filters-release-tags
+      - unitTests:
+          requires:
+            - assemble
+            - spotless
+          filters:
+            tags:
+              <<: *filters-release-tags
+      - integrationTests:
+          requires:
+            - assemble
+            - spotless
+          filters:
+            tags:
+              <<: *filters-release-tags
+      - acceptanceTests:
+          requires:
+            - assemble
+            - spotless
+          filters:
+            tags:
+              <<: *filters-release-tags
+      - docker:
+          requires:
+            - assemble
+            - spotless
+          filters:
+            tags:
+              <<: *filters-release-tags
+      - extractAPISpec:
+          requires:
+            - assemble
+          filters:
+            tags:
+              <<: *filters-release-tags
+      - publish:
+          filters:
+            branches:
+              only:
+                - master
+                - /^release-.*/
+            tags:
+              <<: *filters-release-tags
+          requires:
+            - unitTests
+            - integrationTests
+            - acceptanceTests
+            - referenceTests
+            - docker
+            - extractAPISpec
+      - publishDocker:
+          filters:
+            branches:
+              only:
+                - master
+                - /^release-.*/
+            tags:
+              <<: *filters-release-tags
+          requires:
+            - unitTests
+            - integrationTests
+            - acceptanceTests
+            - referenceTests
+            - docker
+            - extractAPISpec
+      - publishAPIDoc:
+          filters:
+            branches:
+              only:
+                - master
+                - /^release-.*/
+            tags: # stable doc is published only on tags to prevent confusion on the doc site.
+              <<: *filters-release-tags
+          requires:
+            - unitTests
+            - integrationTests
+            - acceptanceTests
+            - referenceTests
+            - docker
+            - extractAPISpec

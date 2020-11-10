@@ -1,0 +1,73 @@
+println "Yay!"
+
+task assemble {
+  doFirst {
+    println "Assembled"
+  }
+}
+
+task spotlessCheck {
+  doFirst {
+    println "spotlessCheck"
+  }
+}
+
+task test {
+  doFirst {
+    println "test"
+  }
+}
+
+task integrationTest {
+  doFirst {
+    println "integrationTest"
+  }
+}
+
+task acceptanceTest {
+  doFirst {
+    println "acceptanceTest"
+  }
+}
+
+task referenceTest {
+  doFirst {
+    println "referenceTest"
+  }
+}
+
+task compatibilityTest {
+  doFirst {
+    println "compatibilityTest"
+  }
+}
+
+task distDocker {
+  doFirst {
+    println "distDocker"
+  }
+}
+
+task bintrayUpload {
+  doFirst {
+    println "bintrayUpload"
+  }
+}
+
+task dockerUpload {
+  doFirst {
+    println "bintrayUpload"
+  }
+}
+
+task extractAPISpec {
+  doFirst {
+    println "extractAPISpec"
+  }
+}
+
+task publishAPIDoc {
+  doFirst {
+    println "publishAPIDoc"
+  }
+}
