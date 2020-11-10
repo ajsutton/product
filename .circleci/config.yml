@@ -67,7 +67,7 @@ jobs:
       - run:
           name: Assemble
           command: |
-            ./gradlew --no-daemon --parallel assemble
+            ./gradlew --no-daemon --parallel "-Pbranch=${CIRCLE_BRANCH}" assemble
       - save_cache:
           name: Caching gradle dependencies
           key: deps-{{ checksum "build.gradle" }}-{{ .Branch }}-{{ .Revision }}

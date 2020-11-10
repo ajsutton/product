@@ -3,6 +3,11 @@ println "Yay!"
 task assemble {
   doFirst {
     println "Assembled"
+    if (project.hasProperty('branch')) {
+      println project.property('branch')
+    } else {
+      println "No branch"
+    }
   }
 }
 
